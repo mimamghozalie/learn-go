@@ -1,19 +1,19 @@
+FROM golang:1.20.6-alpine3.18 AS builder
 
-FROM alpine:3.18
-RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
-
-# Set the working directory
 WORKDIR /app
+# COPY cmd ./cmd
+# COPY go.mod .
+# COPY go.sum .
+COPY . .
+RUN go mod download
+# RUN GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o main .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+# RUN go build main.go
 
-# Copy the Golang binary into the image
-COPY dist/apps/api/default /app/main
-
-ENV PORT=3000
+FROM scratch
+COPY --from=builder /app/main /main
+ENV PORT=8080
 ENV HOST=0.0.0.0
 ENV GIN_MODE=release
-
-# Expose any necessary ports
-EXPOSE 3000
-
-# Start the Golang binary
-CMD ["/app/main"]
+EXPOSE 8080
+ENTRYPOINT ["/main"]
