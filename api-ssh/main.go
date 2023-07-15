@@ -1,75 +1,48 @@
+package main
+
 import (
-	// ...
 	"fmt"
-	"golang.org/x/crypto/ssh"
+	"os"
+
+	"github.com/gin-gonic/gin"
 )
 
-func LoginSSH(w http.ResponseWriter, r *http.Request) {
-	// Mendapatkan nilai parameter ip, ssh_key, dan auth_method
-	ip := r.FormValue("ip")
-	sshKey := r.FormValue("ssh_key")
-	authMethod := r.FormValue("auth_method")
+// HelloResponse struct
+type HelloResponse struct {
+	Message string `json:"message"`
+}
 
-	// Membuat konfigurasi SSH
-	config := &ssh.ClientConfig{
-		User: "username", // Ganti dengan username SSH Anda
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+func helloHandler(c *gin.Context) {
+	response := HelloResponse{
+		Message: "Hello, World!",
 	}
 
-	// Memilih metode otentikasi yang akan digunakan
-	switch authMethod {
-	case "password":
-		password := r.FormValue("password")
-		config.Auth = []ssh.AuthMethod{
-			ssh.Password(password),
-		}
-	case "key":
-		// Memuat kunci SSH dari sshKey
-		key, err := ssh.ParsePrivateKey([]byte(sshKey))
-		if err != nil {
-			// Mengembalikan response dengan status "error"
-			response := map[string]interface{}{
-				"error":   fmt.Sprintf("Failed to parse SSH key: %v", err),
-				"status":  "error",
-			}
-			render.JSON(w, r, response)
-			return
-		}
-		config.Auth = []ssh.AuthMethod{
-			ssh.PublicKeys(key),
-		}
-	default:
-		// Mengembalikan response dengan status "error" jika metode otentikasi tidak valid
-		response := map[string]interface{}{
-			"error":   "Invalid authentication method",
-			"status":  "error",
-		}
-		render.JSON(w, r, response)
-		return
+	c.JSON(200, response)
+}
+
+func main() {
+	router := gin.Default()
+
+	// Configure trusted proxies
+	router.ForwardedByClientIP = true
+	router.SetTrustedProxies([]string{"127.0.0.1"}) // Replace with your trusted proxy IP or IPs
+
+	// Register helloHandler
+	router.GET("/hello", helloHandler)
+
+	// Start the server
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
 
-	// Membuat koneksi SSH
-	client, err := ssh.Dial("tcp", ip+":22", config)
+	fmt.Printf("Server running at port %s\n", port)
+	err := router.Run(":" + port)
 	if err != nil {
-		// Mengembalikan response dengan status "error"
-		response := map[string]interface{}{
-			"error":   fmt.Sprintf("Failed to connect to SSH server: %v", err),
-			"status":  "error",
-		}
-		render.JSON(w, r, response)
-		return
+		// Ada kesalahan saat menjalankan server
+		panic(fmt.Sprintf("Failed to start server: %v", err))
+	} else {
+		fmt.Printf("Server running at port %s\n", port)
 	}
 
-	// Melakukan proses login ssh menggunakan nilai parameter yang diberikan
-	// ...
-
-	// Mendapatkan IP server
-	serverIP, _, _ := net.SplitHostPort(r.RemoteAddr)
-
-	// Mengembalikan response
-	response := map[string]interface{}{
-		"ip":      serverIP,
-		"status":  "success",
-	}
-	render.JSON(w, r, response)
 }
